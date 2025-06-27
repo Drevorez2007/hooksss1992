@@ -1,6 +1,4 @@
-import { React, useState } from 'react'
-import Checkbox from 'antd/es/checkbox/Checkbox'
-import TaskList from '../task_list/task_list'
+import React, { useState, useEffect, useRef } from 'react'
 import './task.css'
 import Timer from '../timer/timer'
 
@@ -18,8 +16,43 @@ function Task({
   toggleDone,
 }) {
   const [isEditing, setIsEditing] = useState(false)
+  const [editText, setEditText] = useState(text)
+  const inputRef = useRef(null)
 
-  const formatTime = (num) => num.toString().padStart(2, '0')
+  useEffect(() => {
+    if (isEditing) {
+      setEditText(text)
+
+      inputRef.current?.focus()
+    }
+  }, [isEditing, text])
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      onTextChange(id, editText.trim())
+      setIsEditing(false)
+    } else if (e.key === 'Escape') {
+      setIsEditing(false)
+      setEditText(text)
+    }
+  }
+
+  useEffect(() => {
+    if (!isEditing) return
+
+    function handleClickOutside(event) {
+      if (inputRef.current && !inputRef.current.contains(event.target)) {
+        setIsEditing(false)
+        setEditText(text)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isEditing, text])
 
   return (
     <li className="task-item">
@@ -28,14 +61,18 @@ function Task({
       {isEditing ? (
         <input
           type="text"
-          value={text}
-          onChange={(e) => onTextChange(id, e.target.value)}
-          onBlur={() => setIsEditing(false)}
-          autoFocus
-          onKeyDown={(e) => e.key === 'Enter' && setIsEditing(false)}
+          ref={inputRef}
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          onKeyDown={onKeyDown}
         />
       ) : (
-        <span className={`task-text ${done ? 'done' : ''}`}>{text}</span>
+        <span
+          className={`task-text ${done ? 'done' : ''}`}
+          onClick={() => setIsEditing(true)}
+        >
+          {text}
+        </span>
       )}
 
       <Timer

@@ -1,4 +1,4 @@
-import { React, useState } from 'react'
+import React from 'react'
 import Task from '../task/task'
 
 function TaskList({
@@ -7,7 +7,7 @@ function TaskList({
   onTextChange,
   toggleRunning,
   updateTaskTime,
-  toggleDone
+  toggleDone,
 }) {
   return (
     <ul className="task-list">

@@ -1,5 +1,4 @@
-
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import NewTaskForm from '../new_task_form/new_task_form'
 import TaskList from '../task_list/task_list'
@@ -8,10 +7,9 @@ import Footer from '../footer/footer'
 function App() {
   const [task, setTask] = useState('')
   const [arrayTask, setArrayTask] = useState([])
-  const [min, setMin] = useState(0)
-  const [sec, setSec] = useState(0)
   const focusOnInput = useRef()
   const [filter, setFilter] = useState('all')
+  const timersRef = useRef({})
 
   const updateTaskTime = (id, newTimeOrUpdater) => {
     setArrayTask((tasks) =>
@@ -19,14 +17,12 @@ function App() {
         if (task.id === id) {
           const newTime =
             typeof newTimeOrUpdater === 'function'
-              ? newTimeOrUpdater(task.time, task.mode)
+              ? newTimeOrUpdater(task.time)
               : newTimeOrUpdater
 
-          if (task.mode === 'down' && newTime < 0)
+          if (task.mode === 'down' && newTime <= 0) {
             return { ...task, time: 0, isRunning: false }
-          if (task.mode === 'up')
-            return { ...task, time: newTime >= 0 ? newTime : 0 }
-
+          }
           return { ...task, time: newTime >= 0 ? newTime : 0 }
         }
         return task
@@ -34,20 +30,67 @@ function App() {
     )
   }
 
-  const toggleDone = (id) => {
-  setArrayTask((prev) =>
-    prev.map((task) =>
-      task.id === id ? { ...task, done: !task.done } : task,
-    ),
-  )
-}
-
-  const clearCompleted = () => {
-    setArrayTask((prev) => prev.filter((task) => !task.done))
+  const updateRunningState = (id, isRunning) => {
+    setArrayTask((tasks) =>
+      tasks.map((task) => (task.id === id ? { ...task, isRunning } : task)),
+    )
   }
+
+  useEffect(() => {
+    arrayTask.forEach((task) => {
+      const isActive = task.isRunning
+      const exists = timersRef.current[task.id]
+
+      if (isActive && !exists) {
+        timersRef.current[task.id] = setInterval(() => {
+          updateTaskTime(task.id, (prevTime) => {
+            if (task.mode === 'down') {
+              const newTime = prevTime - 1
+              if (newTime <= 0) {
+                clearInterval(timersRef.current[task.id])
+                delete timersRef.current[task.id]
+                updateRunningState(task.id, false)
+                return 0
+              }
+              return newTime
+            } else if (task.mode === 'up') {
+              return prevTime + 1
+            }
+            return prevTime
+          })
+        }, 1000)
+      }
+
+      if (!isActive && exists) {
+        clearInterval(timersRef.current[task.id])
+        delete timersRef.current[task.id]
+      }
+    })
+
+    return () => {
+      Object.values(timersRef.current).forEach(clearInterval)
+      timersRef.current = {}
+    }
+  }, [arrayTask])
 
   const onDelete = (id) => {
     setArrayTask((prev) => prev.filter((task) => task.id !== id))
+    if (timersRef.current[id]) {
+      clearInterval(timersRef.current[id])
+      delete timersRef.current[id]
+    }
+  }
+
+  const toggleDone = (id) => {
+    setArrayTask((prev) =>
+      prev.map((task) =>
+        task.id === id ? { ...task, done: !task.done } : task,
+      ),
+    )
+  }
+
+  const clearCompleted = () => {
+    setArrayTask((prev) => prev.filter((task) => !task.done))
   }
 
   const onTextChange = (id, newValue) => {
@@ -56,20 +99,12 @@ function App() {
     )
   }
 
-  const toggleRunning = (id, running) => {
-    setArrayTask((tasks) =>
-      tasks.map((task) =>
-        task.id === id ? { ...task, isRunning: running } : task,
-      ),
-    )
-  }
-
-  const addTaskToList = (e) => {
-    e.preventDefault()
-    if (!task.trim()) {
+  const addTaskToList = (taskText, min, sec) => {
+    if (!taskText.trim()) {
       alert('Введите задачу!')
       return
     }
+
     const totalSeconds = Math.max(0, Number(min) * 60 + Number(sec))
     const id = Date.now()
 
@@ -77,7 +112,7 @@ function App() {
       ...prev,
       {
         id,
-        task,
+        task: taskText,
         done: false,
         isRunning: false,
         time: totalSeconds,
@@ -86,8 +121,6 @@ function App() {
     ])
 
     setTask('')
-    setMin(0)
-    setSec(0)
   }
 
   return (
@@ -97,14 +130,6 @@ function App() {
           task={task}
           onInputChange={(e) => setTask(e.target.value)}
           addTaskToList={addTaskToList}
-          min={min}
-          sec={sec}
-          saveMin={(e) =>
-            setMin(Math.min(600, Math.max(0, Number(e.target.value))))
-          }
-          saveSec={(e) =>
-            setSec(Math.min(600, Math.max(0, Number(e.target.value))))
-          }
           focusOnInput={focusOnInput}
         />
         <TaskList
@@ -115,7 +140,7 @@ function App() {
                 ? arrayTask.filter((task) => !task.done)
                 : arrayTask.filter((task) => task.done)
           }
-          toggleRunning={toggleRunning}
+          toggleRunning={updateRunningState}
           updateTaskTime={updateTaskTime}
           onDelete={onDelete}
           onTextChange={onTextChange}
