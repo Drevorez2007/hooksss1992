@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint . --ext js,jsx",
     "format": "prettier --write .",
-    "prepare": "node -e \"if (process.env.VERCEL !== '1') require('child_process').execSync('husky install', { stdio: 'inherit' })\""
+    "prepare": "node ./scripts/prepare-husky.js"
   },
   "dependencies": {
     "ant": "^0.0.0",
