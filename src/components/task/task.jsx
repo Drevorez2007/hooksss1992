@@ -37,6 +37,12 @@ function Task({
     }
   }
 
+  const formatTime = (totalSeconds) => {
+    const min = Math.floor(totalSeconds / 60)
+    const sec = totalSeconds % 60
+    return `${min}:${sec.toString().padStart(2, '0')}`
+  }
+
   useEffect(() => {
     if (!isEditing) return
 
@@ -74,6 +80,7 @@ function Task({
           {text}
         </span>
       )}
+
 
       <Timer
         id={id}
