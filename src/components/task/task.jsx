@@ -81,7 +81,6 @@ function Task({
         </span>
       )}
 
-
       <Timer
         id={id}
         time={time}
